@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from dataclasses import dataclass
 from typing import List, Union, Optional
 import sys
@@ -27,7 +29,7 @@ class Linktree(object):
     async def _fetch(self, url : str,
                      method : str = "GET", 
                      headers : dict = {}, 
-                     data : dict = {}) -> tuple[aiohttp.ClientSession, aiohttp.ClientSession]:
+                     data : dict = {}) -> tuple:
         
         session = aiohttp.ClientSession(headers= headers)
         resp = await session.request(method = method ,url = url, json = data)
@@ -120,7 +122,7 @@ class Linktree(object):
         avatar_image = account["profilePictureUrl"]
         url = f"https://linktr.ee/{username}" if url is None else url 
         id = account["id"]
-        tier  = account["tier"]
+        tier  = account.get("tier", "Unknown")
         isActive = account["isActive"]
         createdAt = account["createdAt"]
         updatedAt = account["updatedAt"]
