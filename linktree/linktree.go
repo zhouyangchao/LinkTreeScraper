@@ -92,9 +92,23 @@ func (lt *Linktree) getUserInfoJSON(source, url, username string) (map[string]in
 	doc.Find("script#__NEXT_DATA__").Each(func(i int, s *goquery.Selection) {
 		jsonData := s.Text()
 		var data map[string]interface{}
-		json.Unmarshal([]byte(jsonData), &data)
-		userData = data["props"].(map[string]interface{})["pageProps"].(map[string]interface{})
+		if err := json.Unmarshal([]byte(jsonData), &data); err != nil {
+			return
+		}
+		props, ok := data["props"].(map[string]interface{})
+		if !ok {
+			return
+		}
+		pageProps, ok := props["pageProps"].(map[string]interface{})
+		if !ok {
+			return
+		}
+		userData = pageProps
 	})
+
+	if userData == nil {
+		return nil, fmt.Errorf("failed to extract user data from HTML")
+	}
 
 	return userData, nil
 }
@@ -133,9 +147,21 @@ func (lt *Linktree) uncensorLinks(accountID int, linkIDs []int) ([]Link, error) 
 	}
 
 	links := []Link{}
-	for _, l := range resp["links"].([]interface{}) {
-		link := l.(map[string]interface{})
-		links = append(links, Link{URL: link["url"].(string)})
+	linksData, ok := resp["links"].([]interface{})
+	if !ok {
+		return links, nil // 返回空链接列表而不是错误
+	}
+
+	for _, l := range linksData {
+		link, ok := l.(map[string]interface{})
+		if !ok {
+			continue // 跳过无效的链接数据
+		}
+		url, ok := link["url"].(string)
+		if !ok {
+			continue // 跳过没有有效URL的链接
+		}
+		links = append(links, Link{URL: url})
 	}
 
 	return links, nil
@@ -150,8 +176,21 @@ func (lt *Linktree) getUserLinks(username string, data map[string]interface{}) (
 		}
 	}
 
-	userID := int(data["account"].(map[string]interface{})["id"].(float64))
-	links := data["links"].([]interface{})
+	account, ok := data["account"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid account data structure")
+	}
+
+	userIDFloat, ok := account["id"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("invalid user ID")
+	}
+	userID := int(userIDFloat)
+
+	links, ok := data["links"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid links data structure")
+	}
 
 	var resultLinks []Link
 	var censoredLinkIDs []int
@@ -206,9 +245,21 @@ func (lt *Linktree) GetLinktreeUserInfo(url, username string) (*LinktreeUser, ma
 		return nil, nil, err
 	}
 
-	account := jsonInfo["account"].(map[string]interface{})
-	username = account["username"].(string)
-	avatarImage := account["profilePictureUrl"].(string)
+	account, ok := jsonInfo["account"].(map[string]interface{})
+	if !ok {
+		return nil, jsonInfo, fmt.Errorf("invalid account data structure")
+	}
+
+	username, ok = account["username"].(string)
+	if !ok {
+		return nil, jsonInfo, fmt.Errorf("invalid username")
+	}
+
+	avatarImage := ""
+	if profilePic, ok := account["profilePictureUrl"].(string); ok {
+		avatarImage = profilePic
+	}
+
 	if url == "" {
 		url = fmt.Sprintf("https://linktr.ee/%s", username)
 	}
@@ -221,17 +272,21 @@ func (lt *Linktree) GetLinktreeUserInfo(url, username string) (*LinktreeUser, ma
 		var err error
 		id, err = strconv.Atoi(v)
 		if err != nil {
-			return nil, jsonInfo, fmt.Errorf("failed to convert id to int: %v", err)
+			id = 0 // Use default value instead of returning an error
 		}
 	default:
-		return nil, jsonInfo, fmt.Errorf("unexpected type for id: %T", v)
+		id = 0 // Use default value for unexpected types
 	}
 
 	tier, _ := account["tier"].(string)
 	if tier == "" {
 		tier = "Unknown"
 	}
-	isActive, _ := account["isActive"].(bool)
+
+	isActive := false
+	if active, ok := account["isActive"].(bool); ok {
+		isActive = active
+	}
 
 	var createdAt, updatedAt int64
 	if ca, ok := account["createdAt"].(float64); ok {
@@ -241,11 +296,15 @@ func (lt *Linktree) GetLinktreeUserInfo(url, username string) (*LinktreeUser, ma
 		updatedAt = int64(ua)
 	}
 
-	description, _ := account["description"].(string)
+	description := ""
+	if desc, ok := account["description"].(string); ok {
+		description = desc
+	}
 
 	links, err := lt.getUserLinks("", jsonInfo)
 	if err != nil {
-		return nil, jsonInfo, err
+		fmt.Printf("Error getting user links: %v\n", err)
+		links = []Link{}
 	}
 
 	return &LinktreeUser{
