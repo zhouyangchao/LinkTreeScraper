@@ -1,22 +1,45 @@
 # LinkTreeScraper
-Scraping Linktree user's information and links using python.
+Scraping Linktree user's information and links using Python and Golang.
 
-# Installation
+# Python
 
-install project
+## Installation
 
-`git clone https://github.com/zhouyangchao/LinkTreeScraper.git `
+```
+git clone https://github.com/zhouyangchao/LinkTreeScraper.git
+pip3 install -r requirements.txt
+```
 
-install requirements
+## Usage
 
-`pip3 install -r requirements.txt`
+```
+python3 linktree.py <username> or <url>
+```
 
-# Usage
+## Examples
 
-`./linktree.py <username> or <url>`
+```
+python3 linktree.py Pale_but_peachy
+python3 linktree.py https://linktr.ee/Pale_but_peachy
+```
 
-# Example 
+# Golang
 
-`./linktree.py Pale_but_peachy`
+## Installation
 
-`./linktree.py https://linktr.ee/Pale_but_peachy`
+```
+go get github.com/zhouyangchao/LinkTreeScraper
+```
+
+## Usage
+
+```
+go run cmd/linktree/main.go <username> or <url>
+```
+
+## Examples
+
+```
+go run cmd/linktree/main.go Pale_but_peachy
+go run cmd/linktree/main.go https://linktr.ee/Pale_but_peachy
+```
