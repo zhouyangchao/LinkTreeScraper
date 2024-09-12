@@ -3,6 +3,7 @@ package linktree
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -157,11 +158,24 @@ func (lt *Linktree) getUserLinks(username string, data map[string]interface{}) (
 
 	for _, l := range links {
 		link := l.(map[string]interface{})
-		id := int(link["id"].(float64))
-		url, urlExists := link["url"].(string)
-		locked := link["locked"].(bool)
+		var id int
+		switch v := link["id"].(type) {
+		case float64:
+			id = int(v)
+		case string:
+			var err error
+			id, err = strconv.Atoi(v)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert id to int: %v", err)
+			}
+		default:
+			return nil, fmt.Errorf("unexpected type for id: %T", v)
+		}
 
-		if link["type"].(string) == "COMMERCE_PAY" {
+		url, urlExists := link["url"].(string)
+		locked, _ := link["locked"].(bool)
+
+		if linkType, ok := link["type"].(string); ok && linkType == "COMMERCE_PAY" {
 			continue
 		}
 
@@ -182,14 +196,14 @@ func (lt *Linktree) getUserLinks(username string, data map[string]interface{}) (
 	return resultLinks, nil
 }
 
-func (lt *Linktree) GetLinktreeUserInfo(url, username string) (*LinktreeUser, error) {
+func (lt *Linktree) GetLinktreeUserInfo(url, username string) (*LinktreeUser, map[string]interface{}, error) {
 	if url == "" && username == "" {
-		return nil, fmt.Errorf("Please pass linktree username or url")
+		return nil, nil, fmt.Errorf("Please pass linktree username or url")
 	}
 
 	jsonInfo, err := lt.getUserInfoJSON("", url, username)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	account := jsonInfo["account"].(map[string]interface{})
@@ -198,19 +212,40 @@ func (lt *Linktree) GetLinktreeUserInfo(url, username string) (*LinktreeUser, er
 	if url == "" {
 		url = fmt.Sprintf("https://linktr.ee/%s", username)
 	}
-	id := int(account["id"].(float64))
+
+	var id int
+	switch v := account["id"].(type) {
+	case float64:
+		id = int(v)
+	case string:
+		var err error
+		id, err = strconv.Atoi(v)
+		if err != nil {
+			return nil, jsonInfo, fmt.Errorf("failed to convert id to int: %v", err)
+		}
+	default:
+		return nil, jsonInfo, fmt.Errorf("unexpected type for id: %T", v)
+	}
+
 	tier, _ := account["tier"].(string)
 	if tier == "" {
 		tier = "Unknown"
 	}
-	isActive := account["isActive"].(bool)
-	createdAt := int64(account["createdAt"].(float64))
-	updatedAt := int64(account["updatedAt"].(float64))
-	description := account["description"].(string)
+	isActive, _ := account["isActive"].(bool)
+
+	var createdAt, updatedAt int64
+	if ca, ok := account["createdAt"].(float64); ok {
+		createdAt = int64(ca)
+	}
+	if ua, ok := account["updatedAt"].(float64); ok {
+		updatedAt = int64(ua)
+	}
+
+	description, _ := account["description"].(string)
 
 	links, err := lt.getUserLinks("", jsonInfo)
 	if err != nil {
-		return nil, err
+		return nil, jsonInfo, err
 	}
 
 	return &LinktreeUser{
@@ -224,5 +259,5 @@ func (lt *Linktree) GetLinktreeUserInfo(url, username string) (*LinktreeUser, er
 		UpdatedAt:   updatedAt,
 		Description: description,
 		Links:       links,
-	}, nil
+	}, jsonInfo, nil
 }
