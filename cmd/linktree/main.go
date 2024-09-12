@@ -23,7 +23,11 @@ func main() {
 		username = input
 	}
 
-	lt := linktree.NewLinktree()
+	lt, err := linktree.NewLinktree("")
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
 	userInfo, jsonInfo, err := lt.GetLinktreeUserInfo(url, username)
 	if err != nil {
 		fmt.Printf("Error: %v, %v\n", err, jsonInfo)

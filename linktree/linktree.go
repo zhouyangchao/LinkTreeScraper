@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpproxy"
 )
 
 type Link struct {
@@ -31,10 +33,20 @@ type Linktree struct {
 	client *fasthttp.Client
 }
 
-func NewLinktree() *Linktree {
-	return &Linktree{
-		client: &fasthttp.Client{},
+func NewLinktree(proxy string) (*Linktree, error) {
+	var client *fasthttp.Client
+	if proxy == "" {
+		client = &fasthttp.Client{}
+	} else if strings.HasPrefix(proxy, "http://") {
+		server := strings.Split(proxy, "://")[1]
+		client = &fasthttp.Client{Dial: fasthttpproxy.FasthttpHTTPDialerTimeout(server, 3*time.Second)}
+	} else if strings.HasPrefix(proxy, "socks5://") {
+		client = &fasthttp.Client{Dial: fasthttpproxy.FasthttpSocksDialer(proxy)}
+	} else {
+		return nil, fmt.Errorf("invalid proxy format")
 	}
+
+	return &Linktree{client: client}, nil
 }
 
 func (lt *Linktree) fetch(url string, method string, headers map[string]string, body []byte) ([]byte, error) {
