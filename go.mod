@@ -1,6 +1,8 @@
 module github.com/zhouyangchao/LinkTreeScraper
 
-go 1.22.5
+go 1.23
+
+toolchain go1.23.1
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.0
