@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/zhouyangchao/LinkTreeScraper/internal/linktree"
+	"github.com/zhouyangchao/LinkTreeScraper/linktree"
 )
 
 func main() {
