@@ -39,7 +39,7 @@ func NewLinktree(proxy string) (*Linktree, error) {
 		client = &fasthttp.Client{}
 	} else if strings.HasPrefix(proxy, "http://") {
 		server := strings.Split(proxy, "://")[1]
-		client = &fasthttp.Client{Dial: fasthttpproxy.FasthttpHTTPDialerTimeout(server, 3*time.Second)}
+		client = &fasthttp.Client{Dial: fasthttpproxy.FasthttpHTTPDialerTimeout(server, 10*time.Second)}
 	} else if strings.HasPrefix(proxy, "socks5://") {
 		client = &fasthttp.Client{Dial: fasthttpproxy.FasthttpSocksDialer(proxy)}
 	} else {
@@ -75,7 +75,10 @@ func (lt *Linktree) fetch(url string, method string, headers map[string]string, 
 }
 
 func (lt *Linktree) getSource(url string) (string, error) {
-	body, err := lt.fetch(url, "GET", nil, nil)
+	headers := map[string]string{
+		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36",
+	}
+	body, err := lt.fetch(url, "GET", headers, nil)
 	if err != nil {
 		return "", err
 	}
